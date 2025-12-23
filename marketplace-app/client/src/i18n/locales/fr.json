@@ -1,0 +1,119 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "back": "Retour",
+    "next": "Suivant",
+    "submit": "Soumettre",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "reset": "Réinitialiser",
+    "apply": "Appliquer"
+  },
+  "nav": {
+    "marketplace": "Marché",
+    "orders": "Commandes",
+    "wallet": "Portefeuille",
+    "vendor": "Vendeur",
+    "admin": "Admin",
+    "settings": "Paramètres",
+    "notifications": "Notifications",
+    "logout": "Déconnexion",
+    "signin": "Connexion"
+  },
+  "auth": {
+    "login": "Connexion",
+    "register": "Inscription",
+    "username": "Nom d'utilisateur",
+    "email": "Email",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "forgotPassword": "Mot de passe oublié?",
+    "noAccount": "Pas de compte?",
+    "hasAccount": "Déjà un compte?",
+    "twoFactor": "Authentification à deux facteurs",
+    "enterCode": "Entrez le code de vérification"
+  },
+  "marketplace": {
+    "title": "Marché KYC Crypto",
+    "subtitle": "Achetez et vendez des cryptomonnaies directement avec d'autres utilisateurs. Protection par séquestre sécurisée pour chaque transaction.",
+    "secureEscrow": "Séquestre Sécurisé",
+    "activeOffers": "Offres Actives",
+    "verifiedVendors": "Vendeurs Vérifiés",
+    "availableOffers": "Offres Disponibles",
+    "noOffers": "Aucune offre disponible",
+    "checkLater": "Revenez plus tard ou ajustez vos filtres",
+    "buy": "Acheter",
+    "sell": "Vendre",
+    "perUnit": "par unité",
+    "limit": "Limite",
+    "available": "Disponible",
+    "featured": "En vedette"
+  },
+  "orders": {
+    "title": "Mes Commandes",
+    "buying": "Achat",
+    "selling": "Vente",
+    "all": "Tout",
+    "active": "Actives",
+    "completed": "Terminées",
+    "noOrders": "Aucune commande trouvée",
+    "orderDetails": "Détails de la commande",
+    "markPaid": "Marquer comme payé",
+    "confirmRelease": "Confirmer la libération",
+    "openDispute": "Ouvrir un litige",
+    "status": {
+      "pending": "En attente",
+      "funded": "Financé",
+      "paid": "Payé",
+      "released": "Libéré",
+      "disputed": "Litige",
+      "cancelled": "Annulé"
+    }
+  },
+  "wallet": {
+    "title": "Portefeuille",
+    "balance": "Solde",
+    "available": "Disponible",
+    "inEscrow": "En séquestre",
+    "deposit": "Déposer",
+    "withdraw": "Retirer",
+    "transactions": "Transactions",
+    "noTransactions": "Aucune transaction"
+  },
+  "vendor": {
+    "profile": "Profil Vendeur",
+    "offers": "Mes Offres",
+    "analytics": "Analytiques",
+    "createOffer": "Créer une offre",
+    "editOffer": "Modifier l'offre",
+    "trades": "Échanges",
+    "revenue": "Revenus",
+    "rating": "Note",
+    "completionRate": "Taux de complétion"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "account": "Compte",
+    "security": "Sécurité",
+    "twoFactor": "Authentification à deux facteurs",
+    "kyc": "Vérification d'identité",
+    "language": "Langue",
+    "theme": "Thème"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "noNotifications": "Aucune notification"
+  },
+  "chat": {
+    "sendMessage": "Tapez un message...",
+    "noMessages": "Aucun message. Commencez la conversation!"
+  }
+}

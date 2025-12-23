@@ -1,0 +1,119 @@
+{
+  "common": {
+    "loading": "Inapakia...",
+    "error": "Hitilafu",
+    "success": "Imefanikiwa",
+    "cancel": "Ghairi",
+    "confirm": "Thibitisha",
+    "save": "Hifadhi",
+    "delete": "Futa",
+    "edit": "Hariri",
+    "back": "Rudi",
+    "next": "Ifuatayo",
+    "submit": "Wasilisha",
+    "search": "Tafuta",
+    "filter": "Chuja",
+    "reset": "Weka upya",
+    "apply": "Tumia"
+  },
+  "nav": {
+    "marketplace": "Soko",
+    "orders": "Maagizo",
+    "wallet": "Mkoba",
+    "vendor": "Muuzaji",
+    "admin": "Msimamizi",
+    "settings": "Mipangilio",
+    "notifications": "Arifa",
+    "logout": "Ondoka",
+    "signin": "Ingia"
+  },
+  "auth": {
+    "login": "Ingia",
+    "register": "Jisajili",
+    "username": "Jina la mtumiaji",
+    "email": "Barua pepe",
+    "password": "Nenosiri",
+    "confirmPassword": "Thibitisha nenosiri",
+    "forgotPassword": "Umesahau nenosiri?",
+    "noAccount": "Huna akaunti?",
+    "hasAccount": "Una akaunti tayari?",
+    "twoFactor": "Uthibitishaji wa Hatua Mbili",
+    "enterCode": "Ingiza msimbo wa uthibitisho"
+  },
+  "marketplace": {
+    "title": "Soko la KYC Crypto",
+    "subtitle": "Nunua na uuze sarafu ya kidijitali moja kwa moja na watumiaji wengine. Ulinzi salama wa escrow kwa kila biashara.",
+    "secureEscrow": "Escrow Salama",
+    "activeOffers": "Ofa Zinazofanya Kazi",
+    "verifiedVendors": "Wauzaji Waliothibitishwa",
+    "availableOffers": "Ofa Zinazopatikana",
+    "noOffers": "Hakuna ofa zinazopatikana",
+    "checkLater": "Angalia baadaye au badilisha vichujio vyako",
+    "buy": "Nunua",
+    "sell": "Uza",
+    "perUnit": "kwa kila kitengo",
+    "limit": "Kikomo",
+    "available": "Inapatikana",
+    "featured": "Iliyoangaziwa"
+  },
+  "orders": {
+    "title": "Maagizo Yangu",
+    "buying": "Kununua",
+    "selling": "Kuuza",
+    "all": "Yote",
+    "active": "Yanayofanya Kazi",
+    "completed": "Yaliyokamilika",
+    "noOrders": "Hakuna maagizo yaliyopatikana",
+    "orderDetails": "Maelezo ya Agizo",
+    "markPaid": "Weka kama Imelipwa",
+    "confirmRelease": "Thibitisha Kutolewa",
+    "openDispute": "Fungua Mgogoro",
+    "status": {
+      "pending": "Inasubiri",
+      "funded": "Imefadhiliwa",
+      "paid": "Imelipwa",
+      "released": "Imetolewa",
+      "disputed": "Mgogoro",
+      "cancelled": "Imeghairiwa"
+    }
+  },
+  "wallet": {
+    "title": "Mkoba",
+    "balance": "Salio",
+    "available": "Inapatikana",
+    "inEscrow": "Katika Escrow",
+    "deposit": "Weka",
+    "withdraw": "Toa",
+    "transactions": "Miamala",
+    "noTransactions": "Hakuna miamala bado"
+  },
+  "vendor": {
+    "profile": "Wasifu wa Muuzaji",
+    "offers": "Ofa Zangu",
+    "analytics": "Uchambuzi",
+    "createOffer": "Tengeneza Ofa",
+    "editOffer": "Hariri Ofa",
+    "trades": "Biashara",
+    "revenue": "Mapato",
+    "rating": "Ukadiriaji",
+    "completionRate": "Kiwango cha Kukamilisha"
+  },
+  "settings": {
+    "title": "Mipangilio",
+    "account": "Akaunti",
+    "security": "Usalama",
+    "twoFactor": "Uthibitishaji wa Hatua Mbili",
+    "kyc": "Uthibitisho wa Utambulisho",
+    "language": "Lugha",
+    "theme": "Mandhari"
+  },
+  "notifications": {
+    "title": "Arifa",
+    "markAllRead": "Weka zote kama zilizosomwa",
+    "noNotifications": "Hakuna arifa"
+  },
+  "chat": {
+    "sendMessage": "Andika ujumbe...",
+    "noMessages": "Hakuna ujumbe bado. Anza mazungumzo!"
+  }
+}

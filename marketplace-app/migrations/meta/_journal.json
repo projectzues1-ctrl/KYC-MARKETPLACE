@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1765624913853,
+      "tag": "0000_wide_layla_miller",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1765828800000,
+      "tag": "0001_add_min_deposit_amount",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765904400000,
+      "tag": "0002_add_confirmed_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1765920000000,
+      "tag": "0003_add_verify_badge",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1766072700000,
+      "tag": "0004_add_auth_security_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1766072800000,
+      "tag": "0005_add_platform_wallet_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1766415084000,
+      "tag": "0006_add_missing_auth_tables",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,770 @@
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation, Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { fetchWithAuth, getUser, isAuthenticated } from "@/lib/auth";
+import { 
+  Shield, 
+  Lock, 
+  Plus, 
+  AlertCircle, 
+  CheckCircle2, 
+  Clock, 
+  DollarSign,
+  User,
+  Loader2,
+  X,
+  Search,
+  ArrowUpDown,
+  BadgeCheck,
+  ThumbsUp,
+  ThumbsDown
+} from "lucide-react";
+
+interface LoaderStats {
+  completedTrades: number;
+  positiveFeedback: number;
+  negativeFeedback: number;
+  isVerifiedVendor: boolean;
+}
+
+interface LoaderAd {
+  id: string;
+  loaderId: string;
+  loaderUsername?: string;
+  loaderStats?: LoaderStats;
+  assetType: string;
+  dealAmount: string;
+  loadingTerms: string | null;
+  upfrontPercentage: number | null;
+  countdownTime?: string;
+  paymentMethods: string[];
+  frozenCommitment: string;
+  loaderFeeReserve?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+const COUNTDOWN_OPTIONS = [
+  { value: "15min", label: "15 minutes" },
+  { value: "30min", label: "30 minutes" },
+  { value: "1hr", label: "1 hour" },
+  { value: "2hr", label: "2 hours" },
+];
+
+interface LoaderOrder {
+  id: string;
+  adId: string;
+  loaderId: string;
+  loaderUsername?: string;
+  receiverId: string;
+  receiverUsername?: string;
+  dealAmount: string;
+  status: string;
+  liabilityType: string | null;
+  role: string;
+  createdAt: string;
+}
+
+interface Wallet {
+  id: string;
+  availableBalance: string;
+  escrowBalance: string;
+}
+
+
+export default function LoadersZone() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("active");
+  
+  const [dealAmount, setDealAmount] = useState("");
+  const [loadingTerms, setLoadingTerms] = useState("");
+  const [upfrontPercentage, setUpfrontPercentage] = useState("");
+  const [countdownTime, setCountdownTime] = useState("30min");
+  const [paymentMethodsInput, setPaymentMethodsInput] = useState("");
+  const [lowUpfrontConfirmed, setLowUpfrontConfirmed] = useState(false);
+  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<"default" | "high_to_low" | "low_to_high">("default");
+
+  const handleDealAmountChange = (value: string) => {
+    if (value === "") {
+      setDealAmount("");
+      return;
+    }
+    // Only allow positive decimal numbers (e.g., 1, 7.5, 100.25) - no negative signs or invalid chars
+    if (!/^\d+(\.\d{0,8})?$/.test(value)) {
+      return; // Reject invalid input silently
+    }
+    const num = parseFloat(value);
+    // Minimum deal amount is 1 USDT
+    if (!isNaN(num) && num >= 1) {
+      setDealAmount(value);
+    }
+  };
+
+  const handleUpfrontPercentageChange = (value: string) => {
+    if (value === "") {
+      setUpfrontPercentage("");
+      return;
+    }
+    // Only allow positive integers (0-100)
+    if (!/^\d+$/.test(value)) {
+      return; // Reject invalid input silently
+    }
+    const num = parseInt(value);
+    // Allow typing any value 0-100
+    if (!isNaN(num) && num >= 0 && num <= 100) {
+      setUpfrontPercentage(value);
+    }
+  };
+
+  const { data: wallet } = useQuery<Wallet>({
+    queryKey: ["wallet"],
+    queryFn: async () => {
+      const res = await fetchWithAuth("/api/wallet");
+      return res.json();
+    },
+    enabled: isAuthenticated(),
+  });
+
+  const { data: activeAds, isLoading: adsLoading } = useQuery<LoaderAd[]>({
+    queryKey: ["loaderAds"],
+    queryFn: async () => {
+      const res = await fetch("/api/loaders/ads");
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) {
+        return [];
+      }
+      return data;
+    },
+    enabled: activeTab === "active",
+  });
+
+  const { data: myAds } = useQuery<LoaderAd[]>({
+    queryKey: ["myLoaderAds"],
+    queryFn: async () => {
+      const res = await fetchWithAuth("/api/loaders/my-ads");
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) {
+        return [];
+      }
+      return data;
+    },
+    enabled: isAuthenticated() && activeTab === "post",
+  });
+
+  const { data: myOrders, isLoading: ordersLoading } = useQuery<LoaderOrder[]>({
+    queryKey: ["myLoaderOrders"],
+    queryFn: async () => {
+      const res = await fetchWithAuth("/api/loaders/my-orders");
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) {
+        return [];
+      }
+      return data;
+    },
+    enabled: isAuthenticated() && activeTab === "orders",
+  });
+
+  const postAdMutation = useMutation({
+    mutationFn: async () => {
+      const paymentMethods = paymentMethodsInput.split(",").map(m => m.trim()).filter(m => m.length > 0);
+      const res = await fetchWithAuth("/api/loaders/ads", {
+        method: "POST",
+        body: JSON.stringify({
+          assetType: "USD",
+          dealAmount: parseFloat(dealAmount),
+          loadingTerms,
+          upfrontPercentage: upfrontPercentage ? parseInt(upfrontPercentage) : 0,
+          countdownTime,
+          paymentMethods,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Loading ad posted successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["loaderAds"] });
+      queryClient.invalidateQueries({ queryKey: ["myLoaderAds"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      setDealAmount("");
+      setLoadingTerms("");
+      setUpfrontPercentage("");
+      setCountdownTime("30min");
+      setPaymentMethodsInput("");
+      setLowUpfrontConfirmed(false);
+      setActiveTab("active");
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    },
+  });
+
+  const acceptDealMutation = useMutation({
+    mutationFn: async (adId: string) => {
+      const res = await fetchWithAuth(`/api/loaders/ads/${adId}/accept`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message);
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Deal Accepted", description: "Redirecting to order..." });
+      queryClient.invalidateQueries({ queryKey: ["loaderAds"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      setLocation(`/loader-order/${data.id}`);
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    },
+  });
+
+  const cancelAdMutation = useMutation({
+    mutationFn: async (adId: string) => {
+      const res = await fetchWithAuth(`/api/loaders/ads/${adId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Ad cancelled and funds refunded" });
+      queryClient.invalidateQueries({ queryKey: ["myLoaderAds"] });
+      queryClient.invalidateQueries({ queryKey: ["loaderAds"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    },
+  });
+
+  const dealAmountNum = parseFloat(dealAmount || "0");
+  const collateral = dealAmountNum * 0.1; // 10% collateral
+  const loaderFee = dealAmountNum * 0.03; // 3% platform fee
+  const totalRequired = collateral + loaderFee; // Total required upfront
+  const availableBalance = parseFloat(wallet?.availableBalance || "0");
+  const upfrontPct = parseInt(upfrontPercentage) || 0;
+  const upfrontAmount = (dealAmountNum * upfrontPct) / 100;
+  const isLowUpfront = upfrontPct < 50;
+  const needsLowUpfrontConfirmation = isLowUpfront && dealAmountNum > 0;
+  // Minimum receiver upfront is 10%
+  const isValidUpfront = upfrontPct >= 10;
+  const canPost = dealAmount && dealAmountNum >= 1 && paymentMethodsInput.trim().length > 0 && availableBalance >= totalRequired && isValidUpfront && (!needsLowUpfrontConfirmation || lowUpfrontConfirmed);
+
+  const filteredAndSortedAds = useMemo(() => {
+    if (!activeAds) return [];
+    
+    let filtered = activeAds.filter(ad => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      const matchesUsername = ad.loaderUsername?.toLowerCase().includes(query);
+      const matchesPaymentMethod = ad.paymentMethods.some(pm => pm.toLowerCase().includes(query));
+      return matchesUsername || matchesPaymentMethod;
+    });
+    
+    if (sortOrder === "high_to_low") {
+      filtered = [...filtered].sort((a, b) => parseFloat(b.dealAmount) - parseFloat(a.dealAmount));
+    } else if (sortOrder === "low_to_high") {
+      filtered = [...filtered].sort((a, b) => parseFloat(a.dealAmount) - parseFloat(b.dealAmount));
+    }
+    
+    return filtered;
+  }, [activeAds, searchQuery, sortOrder]);
+
+  const getTrustScore = (stats?: LoaderStats) => {
+    if (!stats) return null;
+    const total = stats.positiveFeedback + stats.negativeFeedback;
+    if (total === 0) return null;
+    return Math.round((stats.positiveFeedback / total) * 100);
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      awaiting_liability_confirmation: { label: "Select Terms", variant: "outline" },
+      awaiting_payment_details: { label: "Awaiting Details", variant: "outline" },
+      payment_details_sent: { label: "Details Sent", variant: "default" },
+      payment_sent: { label: "Payment Sent", variant: "default" },
+      asset_frozen_waiting: { label: "Frozen - Waiting", variant: "secondary" },
+      completed: { label: "Completed", variant: "default" },
+      closed_no_payment: { label: "Closed", variant: "secondary" },
+      cancelled_auto: { label: "Auto-Cancelled", variant: "secondary" },
+      cancelled_loader: { label: "Cancelled by Loader", variant: "destructive" },
+      cancelled_receiver: { label: "Cancelled by Receiver", variant: "destructive" },
+      disputed: { label: "Disputed", variant: "destructive" },
+      resolved_loader_wins: { label: "Resolved - Loader Wins", variant: "default" },
+      resolved_receiver_wins: { label: "Resolved - Receiver Wins", variant: "default" },
+      resolved_mutual: { label: "Resolved - Mutual", variant: "secondary" },
+    };
+    const s = statusMap[status] || { label: status.replace(/_/g, " "), variant: "secondary" as const };
+    return <Badge variant={s.variant} data-testid={`status-badge-${status}`}>{s.label}</Badge>;
+  };
+
+  if (!isAuthenticated()) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-4">
+        <Lock className="h-16 w-16 text-muted-foreground/50 mb-4" />
+        <p className="text-muted-foreground text-lg text-center">Please sign in to access Loaders Zone</p>
+        <Button className="mt-4" onClick={() => setLocation("/auth")} data-testid="button-login">
+          Sign In
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 pb-24">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2" data-testid="text-loaders-title">
+          <Shield className="h-6 w-6 text-primary" />
+          Loaders Zone
+        </h1>
+        <p className="text-muted-foreground text-sm">High-trust loading with escrow protection</p>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsTrigger value="active" data-testid="tab-active-ads">Active Ads</TabsTrigger>
+          <TabsTrigger value="post" data-testid="tab-post-ad">Post Ad</TabsTrigger>
+          <TabsTrigger value="orders" data-testid="tab-my-orders">My Orders</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active" className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by username or payment method..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-ads"
+              />
+            </div>
+            <Select value={sortOrder} onValueChange={(value: "default" | "high_to_low" | "low_to_high") => setSortOrder(value)}>
+              <SelectTrigger className="w-full sm:w-48" data-testid="select-sort">
+                <ArrowUpDown className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Sort by amount" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default</SelectItem>
+                <SelectItem value="high_to_low">Amount: High to Low</SelectItem>
+                <SelectItem value="low_to_high">Amount: Low to High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {adsLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredAndSortedAds && filteredAndSortedAds.length > 0 ? (
+            filteredAndSortedAds.map((ad) => (
+              <Card key={ad.id} className="overflow-hidden" data-testid={`card-ad-${ad.id}`}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setLocation(`/profile?id=${ad.loaderId}`)}
+                        className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                        data-testid={`profile-link-loader-${ad.loaderId}`}
+                      >
+                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                          {(ad.loaderUsername || "L")[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <p className="font-medium text-foreground" data-testid={`text-loader-${ad.id}`}>
+                              {ad.loaderUsername || "Loader"}
+                            </p>
+                          {ad.loaderStats?.isVerifiedVendor && (
+                            <BadgeCheck className="h-4 w-4 text-blue-500" data-testid={`verified-badge-${ad.id}`} />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{ad.loaderStats?.completedTrades || 0} trades</span>
+                          {getTrustScore(ad.loaderStats) !== null && (
+                            <>
+                              <span>•</span>
+                              <span className={getTrustScore(ad.loaderStats)! >= 80 ? "text-green-600" : getTrustScore(ad.loaderStats)! >= 50 ? "text-yellow-600" : "text-red-600"}>
+                                {getTrustScore(ad.loaderStats)}% trust
+                              </span>
+                              <span className="flex items-center gap-0.5">
+                                <ThumbsUp className="h-3 w-3 text-green-600" />
+                                {ad.loaderStats?.positiveFeedback || 0}
+                              </span>
+                              <span className="flex items-center gap-0.5">
+                                <ThumbsDown className="h-3 w-3 text-red-600" />
+                                {ad.loaderStats?.negativeFeedback || 0}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        </div>
+                      </button>
+                      </div>
+                    <Badge variant="outline" className="flex items-center gap-1 text-green-600 border-green-600">
+                      <Lock className="h-3 w-3" />
+                      10% Locked
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Asset Type</p>
+                      <p className="font-semibold text-foreground">{ad.assetType}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Deal Amount</p>
+                      <p className="font-semibold text-foreground">${parseFloat(ad.dealAmount).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Countdown</p>
+                      <p className="font-semibold text-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {COUNTDOWN_OPTIONS.find(o => o.value === ad.countdownTime)?.label || "30 minutes"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Receiver Fee</p>
+                      <p className="font-semibold text-foreground">2% (${(parseFloat(ad.dealAmount) * 0.02).toFixed(2)})</p>
+                    </div>
+                  </div>
+
+                  {ad.loadingTerms && (
+                    <div className="mb-3">
+                      <p className="text-xs text-muted-foreground">Loading Terms</p>
+                      <p className="text-sm text-foreground">{ad.loadingTerms}</p>
+                    </div>
+                  )}
+
+                  {ad.upfrontPercentage && ad.upfrontPercentage > 0 && (
+                    <div className="mb-3 p-2 bg-amber-500/10 rounded-lg">
+                      <p className="text-xs text-amber-600">
+                        Requires {ad.upfrontPercentage}% upfront (${(parseFloat(ad.dealAmount) * ad.upfrontPercentage / 100).toFixed(2)})
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {ad.paymentMethods.map((method, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">{method}</Badge>
+                    ))}
+                  </div>
+
+                  <Button 
+                    className="w-full" 
+                    onClick={() => acceptDealMutation.mutate(ad.id)}
+                    disabled={acceptDealMutation.isPending || ad.loaderId === getUser()?.id}
+                    data-testid={`button-accept-${ad.id}`}
+                  >
+                    {acceptDealMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                    )}
+                    Accept Deal
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12">
+              <DollarSign className="h-12 w-12 text-muted-foreground/50 mb-3" />
+              <p className="text-muted-foreground">No active loading ads</p>
+              <Button variant="outline" className="mt-4" onClick={() => setActiveTab("post")} data-testid="button-post-first">
+                Post the first ad
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="post">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5" />
+                Post Loading Ad
+              </CardTitle>
+              <CardDescription>Create a new loading offer with escrow protection</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="assetType">Asset Type</Label>
+                <Input 
+                  id="assetType" 
+                  value="USD"
+                  disabled
+                  className="bg-muted"
+                  data-testid="input-asset-type"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Fixed to USD</p>
+              </div>
+
+              <div>
+                <Label htmlFor="dealAmount">Deal Amount</Label>
+                <Input 
+                  id="dealAmount" 
+                  type="number" 
+                  min="0"
+                  value={dealAmount} 
+                  onChange={(e) => handleDealAmountChange(e.target.value)}
+                  placeholder="Enter amount"
+                  data-testid="input-deal-amount"
+                />
+                {dealAmount && parseFloat(dealAmount) > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    10% commitment: ${(parseFloat(dealAmount) * 0.10).toFixed(2)} + 3% fee: ${(parseFloat(dealAmount) * 0.03).toFixed(2)}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="loadingTerms">Loading Rate / Terms (max 200 chars)</Label>
+                <Textarea 
+                  id="loadingTerms" 
+                  value={loadingTerms} 
+                  onChange={(e) => setLoadingTerms(e.target.value.slice(0, 200))}
+                  placeholder="Describe your loading terms..."
+                  maxLength={200}
+                  data-testid="input-loading-terms"
+                />
+                <p className="text-xs text-muted-foreground mt-1">{loadingTerms.length}/200</p>
+              </div>
+
+              <div>
+                <Label htmlFor="upfront">Receiver Upfront Requirement (%)</Label>
+                <Input 
+                  id="upfront" 
+                  type="number" 
+                  min="0" 
+                  max="100"
+                  value={upfrontPercentage} 
+                  onChange={(e) => {
+                    handleUpfrontPercentageChange(e.target.value);
+                    setLowUpfrontConfirmed(false);
+                  }}
+                  placeholder="0-100"
+                  data-testid="input-upfront"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enter 0-100%. Leave empty or set 0 if no upfront is required from receiver
+                </p>
+              </div>
+
+              {needsLowUpfrontConfirmation && (
+                <div className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-700">Low Upfront Warning</p>
+                      <p className="text-xs text-amber-600 mt-1">
+                        You are setting the upfront requirement to <strong>{upfrontPct}%</strong> (${upfrontAmount.toFixed(2)} of ${dealAmountNum.toFixed(2)}).
+                        {upfrontPct === 0 ? " This means the receiver pays nothing upfront." : " This is below 50% of the deal amount."}
+                      </p>
+                      <label className="flex items-start gap-2 mt-3 cursor-pointer">
+                        <Checkbox
+                          checked={lowUpfrontConfirmed}
+                          onCheckedChange={(checked) => setLowUpfrontConfirmed(checked === true)}
+                          data-testid="checkbox-low-upfront"
+                        />
+                        <span className="text-xs text-amber-700">
+                          I understand I will only receive ${upfrontAmount.toFixed(2)} upfront from the receiver. I want to proceed with this amount.
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <Label>Order Countdown Timer</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  How long receivers have to send payment details after accepting
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {COUNTDOWN_OPTIONS.map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      variant={countdownTime === option.value ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCountdownTime(option.value)}
+                      data-testid={`button-countdown-${option.value}`}
+                    >
+                      <Clock className="h-3 w-3 mr-1" />
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="paymentMethods">Receiver Payment Methods</Label>
+                <Input 
+                  id="paymentMethods" 
+                  value={paymentMethodsInput}
+                  onChange={(e) => setPaymentMethodsInput(e.target.value)}
+                  placeholder="e.g. PayPal, Bank Transfer, Mobile Money"
+                  data-testid="input-payment-methods"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enter payment methods separated by commas
+                </p>
+              </div>
+
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Fee Structure:</strong> Loader pays 3% fee, Receiver pays 2% fee on successful deals.
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  <strong>Cancellation:</strong> 5% penalty if either party manually cancels.
+                </p>
+              </div>
+
+              <div className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-700">Upfront Reserve Required</p>
+                    <p className="text-xs text-amber-600">
+                      You need to reserve <strong>10% collateral</strong> (${collateral.toFixed(2)}) + <strong>3% fee</strong> (${loaderFee.toFixed(2)}) = <strong>${totalRequired.toFixed(2)}</strong> total.
+                      Collateral is refunded on completion. Fee is kept on successful deals.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm text-foreground">
+                  <strong>Your Balance:</strong> ${availableBalance.toFixed(2)}
+                </p>
+                {dealAmount && availableBalance < totalRequired && (
+                  <p className="text-xs text-destructive mt-1">
+                    Insufficient balance. You need ${totalRequired.toFixed(2)} (10% collateral + 3% fee).
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <Button 
+                  className="flex-1" 
+                  onClick={() => postAdMutation.mutate()}
+                  disabled={!canPost || postAdMutation.isPending}
+                  data-testid="button-post-ad"
+                >
+                  {postAdMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Plus className="h-4 w-4 mr-2" />
+                  )}
+                  Post Ad
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setActiveTab("active")}
+                  data-testid="button-cancel-post"
+                >
+                  Cancel
+                </Button>
+              </div>
+
+              {myAds && myAds.filter(a => a.isActive).length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Your Active Ads</h3>
+                  {myAds.filter(a => a.isActive).map((ad) => (
+                    <Card key={ad.id} className="mb-2">
+                      <CardContent className="p-3 flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">{ad.assetType} - ${parseFloat(ad.dealAmount).toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">Commitment: ${parseFloat(ad.frozenCommitment).toFixed(2)}</p>
+                        </div>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => cancelAdMutation.mutate(ad.id)}
+                          disabled={cancelAdMutation.isPending}
+                          data-testid={`button-cancel-ad-${ad.id}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="orders" className="space-y-4">
+          {ordersLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : myOrders && myOrders.length > 0 ? (
+            myOrders.map((order) => (
+              <Card 
+                key={order.id} 
+                className="cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => setLocation(`/loader-order/${order.id}`)}
+                data-testid={`card-order-${order.id}`}
+              >
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {order.role === "loader" ? "Loading to" : "Receiving from"}{" "}
+                        {order.role === "loader" ? order.receiverUsername : order.loaderUsername}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Deal: ${parseFloat(order.dealAmount).toLocaleString()}
+                      </p>
+                    </div>
+                    {getStatusBadge(order.status)}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {new Date(order.createdAt).toLocaleDateString()}
+                    <Badge variant="outline" className="ml-auto">
+                      {order.role === "loader" ? "Loader" : "Receiver"}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12">
+              <User className="h-12 w-12 text-muted-foreground/50 mb-3" />
+              <p className="text-muted-foreground">No orders yet</p>
+              <Button variant="outline" className="mt-4" onClick={() => setActiveTab("active")} data-testid="button-browse-ads">
+                Browse Active Ads
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
