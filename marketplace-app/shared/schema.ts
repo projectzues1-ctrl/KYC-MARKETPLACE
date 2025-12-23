@@ -507,7 +507,9 @@ export const userDepositAddresses = pgTable("user_deposit_addresses", {
   userId: varchar("user_id").notNull().references(() => users.id),
   address: text("address").notNull().unique(),
   derivationIndex: integer("derivation_index").notNull(),
+  encryptedPrivateKey: text("encrypted_private_key").notNull(),
   network: text("network").notNull().default("bsc"),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
