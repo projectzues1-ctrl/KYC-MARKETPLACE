@@ -1,0 +1,25 @@
+# Root Render configuration - creates a Docker web service and a Postgres database
+services:
+  - type: web
+    name: marketplace-api
+    env: docker
+    branch: main
+    plan: free
+    dockerfilePath: Dockerfile
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "5000"
+
+databases:
+  - name: marketplace-db
+    plan: starter
+    region: oregon
+
+# Note: Render will provide the DATABASE_URL for the created database.
+# After creation, set the Web Service's `DATABASE_URL` environment variable
+# to the database's external connection string in the Render dashboard
+# (or add it to the `envVars` above once known).
