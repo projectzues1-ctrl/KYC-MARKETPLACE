@@ -1,40 +1,50 @@
 import nodemailer from "nodemailer";
 
-// Prefer generic SMTP env vars so services like Brevo work.
+/**
+ * ENV CONFIG
+ */
 const smtpHost = process.env.SMTP_HOST?.trim();
-const smtpPort = parseInt(process.env.SMTP_PORT || "0", 10) || undefined;
+const smtpPort = Number(process.env.SMTP_PORT) || undefined;
 const smtpUser = process.env.SMTP_USER?.trim();
 const smtpPass = process.env.SMTP_PASS?.trim();
-const smtpFrom = process.env.SMTP_FROM || process.env.GMAIL_SENDER_EMAIL || "kycmarketplace.noreply@gmail.com";
+const smtpFrom =
+  process.env.SMTP_FROM ||
+  process.env.GMAIL_SENDER_EMAIL ||
+  "kycmarketplace.noreply@gmail.com";
+
 const enableEmail = (process.env.ENABLE_EMAIL || "true").toLowerCase() !== "false";
 
-// Fallback Gmail config
-const gmailSender = process.env.GMAIL_SENDER_EMAIL || "kycmarketplace.noreply@gmail.com";
+/**
+ * FALLBACK GMAIL CONFIG
+ */
+const gmailSender = process.env.GMAIL_SENDER_EMAIL || "";
 const gmailAppPassword = process.env.GMAIL_APP_PASSWORD || "";
 
 let transporter: nodemailer.Transporter | null = null;
 
-// Initialize transporter with SMTP or Gmail fallback
+/**
+ * CREATE TRANSPORTER
+ */
 if (smtpHost && smtpPort && smtpUser && smtpPass && enableEmail) {
   transporter = nodemailer.createTransport({
     host: smtpHost,
     port: smtpPort,
-    secure: false, // Use STARTTLS
+    secure: smtpPort === 465, // ✅ FIX: correct TLS handling
     auth: {
       user: smtpUser,
       pass: smtpPass,
     },
-    connectionTimeout: 30000, // 30 seconds for initial connection
-    socketTimeout: 30000,     // 30 seconds for socket operations
-    greetingTimeout: 10000,   // 10 seconds to wait for SMTP greeting
-    pool: {
-      maxConnections: 3,
-      maxMessages: 50,
-      rateDelta: 1000,
-      rateLimit: 3,
-    },
+    pool: true, // ✅ REQUIRED for pooling options
+    maxConnections: 3,
+    maxMessages: 50,
+    rateDelta: 1000,
+    rateLimit: 3,
+    connectionTimeout: 5000, // ✅ FAST FAIL
+    socketTimeout: 5000,
+    greetingTimeout: 5000,
   });
-  console.log(`✅ SMTP configured (${smtpHost}:${smtpPort}) with 30s timeout for sending emails`);
+
+  console.log(`✅ SMTP enabled (${smtpHost}:${smtpPort})`);
 } else if (gmailSender && gmailAppPassword && enableEmail) {
   transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -44,153 +54,115 @@ if (smtpHost && smtpPort && smtpUser && smtpPass && enableEmail) {
       user: gmailSender,
       pass: gmailAppPassword,
     },
-    connectionTimeout: 30000, // 30 seconds for initial connection
-    socketTimeout: 30000,     // 30 seconds for socket operations
-    greetingTimeout: 10000,   // 10 seconds to wait for SMTP greeting
-    pool: {
-      maxConnections: 3,
-      maxMessages: 50,
-      rateDelta: 1000,
-      rateLimit: 3,
-    },
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 50,
+    rateDelta: 1000,
+    rateLimit: 3,
+    connectionTimeout: 5000,
+    socketTimeout: 5000,
+    greetingTimeout: 5000,
   });
-  console.log("✅ Gmail configured as fallback (30s timeout) for sending emails");
+
+  console.log("✅ Gmail SMTP fallback enabled");
 } else {
-  if (enableEmail) console.warn("⚠️  No SMTP configuration found - email sending will be disabled");
+  if (enableEmail) {
+    console.warn("⚠️  Email is ENABLED but no SMTP configuration found");
+  }
 }
 
-// Helper to get the From address
-function getFromAddress() {
-  return smtpFrom || gmailSender;
-}
-
-// Helper function to retry email sends with backoff
-async function sendEmailWithRetry(
-  transporter: nodemailer.Transporter,
-  mailOptions: any,
-  maxRetries: number = 3
+/**
+ * SEND EMAIL (NO RETRIES — FAST + SAFE)
+ */
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string
 ): Promise<void> {
-  let lastError: any;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`[Email] Attempt ${attempt}/${maxRetries} to send to ${mailOptions.to}`);
-      await transporter.sendMail(mailOptions);
-      console.log(`[Email] ✅ Successfully sent email to ${mailOptions.to}`);
-      return; // Success, exit retry loop
-    } catch (error: any) {
-      lastError = error;
-      const errorMsg = error?.message || error?.code || String(error);
-      console.warn(`[Email] ⚠️  Attempt ${attempt}/${maxRetries} failed: ${errorMsg}`);
-      if (attempt < maxRetries) {
-        const delayMs = Math.min(2000 * Math.pow(2, attempt - 1), 10000); // Exponential backoff: 2s, 4s, 8s
-        console.log(`[Email] Retrying in ${delayMs}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-      }
-    }
-  }
-  // All retries failed
-  throw new Error(`Email sending failed after ${maxRetries} attempts: ${lastError?.message || lastError}`);
+  if (!transporter) throw new Error("Email transporter not configured");
+
+  await transporter.sendMail({
+    from: smtpFrom,
+    to,
+    subject,
+    html,
+  });
 }
 
-export async function sendVerificationEmail(
-  email: string,
-  code: string
-): Promise<boolean> {
+/**
+ * PUBLIC FUNCTIONS — NON-BLOCKING
+ */
+export function sendVerificationEmail(email: string, code: string): void {
   if (!transporter) {
-    console.warn("⚠️  Email service not configured. Verification code:", code);
-    return false;
+    console.warn("⚠️  Email disabled. Verification code:", code);
+    return;
   }
 
-  try {
-    console.log(`Sending verification email to ${email}...`);
-    await sendEmailWithRetry(transporter, {
-      from: getFromAddress(),
-      to: email,
-      subject: "Verify Your Email Address - KYC Marketplace",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Email Verification Required</h2>
-          <p>Your verification code is:</p>
-          <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 20px 0;">
-            ${code}
-          </div>
-          <p>This code will expire in 10 minutes.</p>
-          <p>If you did not request this code, please ignore this email.</p>
+  sendEmail(
+    email,
+    "Verify Your Email Address - KYC Marketplace",
+    `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Email Verification</h2>
+        <p>Your verification code is:</p>
+        <div style="background:#f0f0f0;padding:15px;border-radius:5px;
+          text-align:center;font-size:24px;font-weight:bold;">
+          ${code}
         </div>
-      `,
-    });
-    console.log(`✅ Verification email sent to ${email}`);
-    return true;
-  } catch (error: any) {
-    console.error(`❌ Email sending failed for ${email}:`, error?.message || error);
-    return false;
-  }
+        <p>This code expires in 10 minutes.</p>
+      </div>
+    `
+  ).catch(err => {
+    console.error("❌ Verification email failed:", err.message || err);
+  });
 }
 
-export async function sendPasswordResetEmail(
-  email: string,
-  code: string
-): Promise<boolean> {
+export function sendPasswordResetEmail(email: string, code: string): void {
   if (!transporter) {
-    console.warn("⚠️  Email service not configured. Reset code:", code);
-    return false;
+    console.warn("⚠️  Email disabled. Reset code:", code);
+    return;
   }
 
-  try {
-    await sendEmailWithRetry(transporter, {
-      from: getFromAddress(),
-      to: email,
-      subject: "Reset Your Password - KYC Marketplace",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Password Reset Request</h2>
-          <p>Your password reset code is:</p>
-          <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 20px 0;">
-            ${code}
-          </div>
-          <p>This code will expire in 10 minutes.</p>
-          <p>If you did not request a password reset, please ignore this email.</p>
+  sendEmail(
+    email,
+    "Reset Your Password - KYC Marketplace",
+    `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Password Reset</h2>
+        <p>Your reset code is:</p>
+        <div style="background:#f0f0f0;padding:15px;border-radius:5px;
+          text-align:center;font-size:24px;font-weight:bold;">
+          ${code}
         </div>
-      `,
-    });
-    console.log(`✅ Password reset email sent to ${email}`);
-    return true;
-  } catch (error: any) {
-    console.error("❌ Email sending failed:", error?.message || error);
-    return false;
-  }
+        <p>This code expires in 10 minutes.</p>
+      </div>
+    `
+  ).catch(err => {
+    console.error("❌ Password reset email failed:", err.message || err);
+  });
 }
 
-export async function send2FAResetEmail(
-  email: string,
-  code: string
-): Promise<boolean> {
+export function send2FAResetEmail(email: string, code: string): void {
   if (!transporter) {
-    console.warn("⚠️  Email service not configured. 2FA reset code:", code);
-    return false;
+    console.warn("⚠️  Email disabled. 2FA reset code:", code);
+    return;
   }
 
-  try {
-    await sendEmailWithRetry(transporter, {
-      from: getFromAddress(),
-      to: email,
-      subject: "Reset Two-Factor Authentication - KYC Marketplace",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Two-Factor Authentication Reset</h2>
-          <p>Your 2FA reset code is:</p>
-          <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 20px 0;">
-            ${code}
-          </div>
-          <p>This code will expire in 10 minutes.</p>
-          <p>If you did not request this action, please ignore this email.</p>
+  sendEmail(
+    email,
+    "Reset Two-Factor Authentication - KYC Marketplace",
+    `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>2FA Reset</h2>
+        <p>Your 2FA reset code is:</p>
+        <div style="background:#f0f0f0;padding:15px;border-radius:5px;
+          text-align:center;font-size:24px;font-weight:bold;">
+          ${code}
         </div>
-      `,
-    });
-    console.log(`✅ 2FA reset email sent to ${email}`);
-    return true;
-  } catch (error: any) {
-    console.error("❌ Email sending failed:", error?.message || error);
-    return false;
-  }
+        <p>This code expires in 10 minutes.</p>
+      </div>
+    `
+  ).catch(err => {
+    console.error("❌ 2FA reset email failed:", err.message || err);
+  });
 }
