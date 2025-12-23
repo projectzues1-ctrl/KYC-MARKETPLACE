@@ -533,9 +533,28 @@ export const depositSweeps = pgTable("deposit_sweeps", {
 
 export const platformWalletControls = pgTable("platform_wallet_controls", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  withdrawalsEnabled: boolean("withdrawals_enabled").notNull().default(true),
+  depositsEnabled: boolean("deposits_enabled").notNull().default(true),
+  sweepsEnabled: boolean("sweeps_enabled").notNull().default(true),
+  emergencyMode: boolean("emergency_mode").notNull().default(false),
+  hotWalletBalanceCap: numeric("hot_wallet_balance_cap", { precision: 18, scale: 8 }).notNull().default("100000"),
+  perUserDailyWithdrawalLimit: numeric("per_user_daily_withdrawal_limit", { precision: 18, scale: 8 }).notNull().default("10000"),
+  platformDailyWithdrawalLimit: numeric("platform_daily_withdrawal_limit", { precision: 18, scale: 8 }).notNull().default("100000"),
+  minDepositAmount: numeric("min_deposit_amount", { precision: 18, scale: 8 }).notNull().default("5"),
+  minWithdrawalAmount: numeric("min_withdrawal_amount", { precision: 18, scale: 8 }).notNull().default("10"),
+  withdrawalFeePercent: numeric("withdrawal_fee_percent", { precision: 5, scale: 2 }).notNull().default("0.1"),
+  withdrawalFeeFixed: numeric("withdrawal_fee_fixed", { precision: 18, scale: 8 }).notNull().default("1"),
+  firstWithdrawalDelayMinutes: integer("first_withdrawal_delay_minutes").notNull().default(60),
+  largeWithdrawalThreshold: numeric("large_withdrawal_threshold", { precision: 18, scale: 8 }).notNull().default("1000"),
+  largeWithdrawalDelayMinutes: integer("large_withdrawal_delay_minutes").notNull().default(120),
+  requiredConfirmations: integer("required_confirmations").notNull().default(15),
+  walletUnlocked: boolean("wallet_unlocked").notNull().default(false),
+  unlockedAt: timestamp("unlocked_at"),
+  unlockedBy: varchar("unlocked_by").references(() => users.id),
   totalDeposited: numeric("total_deposited", { precision: 18, scale: 8 }).notNull().default("0"),
   totalSwept: numeric("total_swept", { precision: 18, scale: 8 }).notNull().default("0"),
   lastSweepAt: timestamp("last_sweep_at"),
+  updatedBy: varchar("updated_by").references(() => users.id),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
