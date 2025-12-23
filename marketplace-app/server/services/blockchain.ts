@@ -10,6 +10,7 @@ const MASTER_WALLET_PRIVATE_KEY = process.env.MASTER_WALLET_PRIVATE_KEY;
 
 const BSC_RPC_FALLBACKS = [
   BSC_RPC_URL,
+  "https://bsc-mainnet.core.chainstack.com/149e314fddbe073ad969f973206acac2",
   "https://bsc-dataseed1.binance.org/",
   "https://bsc-dataseed2.binance.org/",
   "https://bsc-dataseed3.binance.org/",
