@@ -1,0 +1,9 @@
+node_modules
+dist
+marketplace-app/dist
+**/node_modules
+.git
+.gitignore
+npm-debug.log
+Dockerfile
+*.tgz
