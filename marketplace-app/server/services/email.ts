@@ -24,16 +24,17 @@ if (smtpHost && smtpPort && smtpUser && smtpPass && enableEmail) {
       user: smtpUser,
       pass: smtpPass,
     },
-    connectionTimeout: 10000, // 10 seconds
-    socketTimeout: 10000,     // 10 seconds
+    connectionTimeout: 30000, // 30 seconds for initial connection
+    socketTimeout: 30000,     // 30 seconds for socket operations
+    greetingTimeout: 10000,   // 10 seconds to wait for SMTP greeting
     pool: {
-      maxConnections: 5,
-      maxMessages: 100,
+      maxConnections: 3,
+      maxMessages: 50,
       rateDelta: 1000,
-      rateLimit: 5,
+      rateLimit: 3,
     },
   });
-  console.log(`✅ SMTP configured (${smtpHost}:${smtpPort}) with 10s timeout for sending emails`);
+  console.log(`✅ SMTP configured (${smtpHost}:${smtpPort}) with 30s timeout for sending emails`);
 } else if (gmailSender && gmailAppPassword && enableEmail) {
   transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -43,16 +44,17 @@ if (smtpHost && smtpPort && smtpUser && smtpPass && enableEmail) {
       user: gmailSender,
       pass: gmailAppPassword,
     },
-    connectionTimeout: 10000, // 10 seconds
-    socketTimeout: 10000,     // 10 seconds
+    connectionTimeout: 30000, // 30 seconds for initial connection
+    socketTimeout: 30000,     // 30 seconds for socket operations
+    greetingTimeout: 10000,   // 10 seconds to wait for SMTP greeting
     pool: {
-      maxConnections: 5,
-      maxMessages: 100,
+      maxConnections: 3,
+      maxMessages: 50,
       rateDelta: 1000,
-      rateLimit: 5,
+      rateLimit: 3,
     },
   });
-  console.log("✅ Gmail configured as fallback (10s timeout) for sending emails");
+  console.log("✅ Gmail configured as fallback (30s timeout) for sending emails");
 } else {
   if (enableEmail) console.warn("⚠️  No SMTP configuration found - email sending will be disabled");
 }
@@ -66,19 +68,22 @@ function getFromAddress() {
 async function sendEmailWithRetry(
   transporter: nodemailer.Transporter,
   mailOptions: any,
-  maxRetries: number = 2
+  maxRetries: number = 3
 ): Promise<void> {
   let lastError: any;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      console.log(`[Email] Attempt ${attempt}/${maxRetries} to send to ${mailOptions.to}`);
       await transporter.sendMail(mailOptions);
+      console.log(`[Email] ✅ Successfully sent email to ${mailOptions.to}`);
       return; // Success, exit retry loop
     } catch (error: any) {
       lastError = error;
-      console.warn(`⚠️  Email send attempt ${attempt}/${maxRetries} failed:`, error?.message || error);
+      const errorMsg = error?.message || error?.code || String(error);
+      console.warn(`[Email] ⚠️  Attempt ${attempt}/${maxRetries} failed: ${errorMsg}`);
       if (attempt < maxRetries) {
-        const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff
-        console.log(`  Retrying in ${delayMs}ms...`);
+        const delayMs = Math.min(2000 * Math.pow(2, attempt - 1), 10000); // Exponential backoff: 2s, 4s, 8s
+        console.log(`[Email] Retrying in ${delayMs}ms...`);
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
