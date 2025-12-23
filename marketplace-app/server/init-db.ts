@@ -646,6 +646,7 @@ async function runMigrations() {
     `ALTER TABLE maintenance_settings ADD COLUMN IF NOT EXISTS auto_withdrawal_enabled BOOLEAN NOT NULL DEFAULT false;`,
     `ALTER TABLE maintenance_settings ADD COLUMN IF NOT EXISTS kyc_required BOOLEAN NOT NULL DEFAULT false;`,
     `ALTER TABLE vendor_profiles ADD COLUMN IF NOT EXISTS has_verify_badge BOOLEAN NOT NULL DEFAULT false;`,
+    `ALTER TABLE blockchain_admin_actions ADD COLUMN IF NOT EXISTS target_type TEXT;`,
     `ALTER TABLE blockchain_admin_actions ADD COLUMN IF NOT EXISTS tx_hash TEXT;`,
     `ALTER TABLE blockchain_admin_actions ADD COLUMN IF NOT EXISTS amount NUMERIC(18, 8);`,
     `ALTER TABLE blockchain_admin_actions ADD COLUMN IF NOT EXISTS metadata JSONB;`,
