@@ -566,6 +566,7 @@ async function createBlockchainTables() {
       action TEXT NOT NULL,
       target_type TEXT NOT NULL,
       target_id VARCHAR,
+      tx_hash TEXT,
       previous_value JSONB,
       new_value JSONB,
       reason TEXT,
