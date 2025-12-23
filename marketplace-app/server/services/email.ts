@@ -24,8 +24,16 @@ if (smtpHost && smtpPort && smtpUser && smtpPass && enableEmail) {
       user: smtpUser,
       pass: smtpPass,
     },
+    connectionTimeout: 10000, // 10 seconds
+    socketTimeout: 10000,     // 10 seconds
+    pool: {
+      maxConnections: 5,
+      maxMessages: 100,
+      rateDelta: 1000,
+      rateLimit: 5,
+    },
   });
-  console.log(`✅ SMTP configured (${smtpHost}:${smtpPort}) for sending emails`);
+  console.log(`✅ SMTP configured (${smtpHost}:${smtpPort}) with 10s timeout for sending emails`);
 } else if (gmailSender && gmailAppPassword && enableEmail) {
   transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -35,8 +43,16 @@ if (smtpHost && smtpPort && smtpUser && smtpPass && enableEmail) {
       user: gmailSender,
       pass: gmailAppPassword,
     },
+    connectionTimeout: 10000, // 10 seconds
+    socketTimeout: 10000,     // 10 seconds
+    pool: {
+      maxConnections: 5,
+      maxMessages: 100,
+      rateDelta: 1000,
+      rateLimit: 5,
+    },
   });
-  console.log("✅ Gmail configured as fallback for sending emails");
+  console.log("✅ Gmail configured as fallback (10s timeout) for sending emails");
 } else {
   if (enableEmail) console.warn("⚠️  No SMTP configuration found - email sending will be disabled");
 }
@@ -44,6 +60,31 @@ if (smtpHost && smtpPort && smtpUser && smtpPass && enableEmail) {
 // Helper to get the From address
 function getFromAddress() {
   return smtpFrom || gmailSender;
+}
+
+// Helper function to retry email sends with backoff
+async function sendEmailWithRetry(
+  transporter: nodemailer.Transporter,
+  mailOptions: any,
+  maxRetries: number = 2
+): Promise<void> {
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await transporter.sendMail(mailOptions);
+      return; // Success, exit retry loop
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`⚠️  Email send attempt ${attempt}/${maxRetries} failed:`, error?.message || error);
+      if (attempt < maxRetries) {
+        const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff
+        console.log(`  Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  // All retries failed
+  throw new Error(`Email sending failed after ${maxRetries} attempts: ${lastError?.message || lastError}`);
 }
 
 export async function sendVerificationEmail(
@@ -57,7 +98,7 @@ export async function sendVerificationEmail(
 
   try {
     console.log(`Sending verification email to ${email}...`);
-    await transporter.sendMail({
+    await sendEmailWithRetry(transporter, {
       from: getFromAddress(),
       to: email,
       subject: "Verify Your Email Address - KYC Marketplace",
@@ -91,7 +132,7 @@ export async function sendPasswordResetEmail(
   }
 
   try {
-    await transporter.sendMail({
+    await sendEmailWithRetry(transporter, {
       from: getFromAddress(),
       to: email,
       subject: "Reset Your Password - KYC Marketplace",
@@ -125,7 +166,7 @@ export async function send2FAResetEmail(
   }
 
   try {
-    await transporter.sendMail({
+    await sendEmailWithRetry(transporter, {
       from: getFromAddress(),
       to: email,
       subject: "Reset Two-Factor Authentication - KYC Marketplace",
